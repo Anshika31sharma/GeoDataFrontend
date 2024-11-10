@@ -1,101 +1,222 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import React, { useState, useEffect, useCallback } from "react";
+import axios from "axios";
+import { useDropzone } from "react-dropzone";
+import dynamic from "next/dynamic";
+
+const Map = dynamic(() => import("./components/Map"), { ssr: false });
+
+const App = () => {
+  const [users, setUsers] = useState([]);
+  const [files, setFiles] = useState([]);
+  const [points, setPoints] = useState([]);
+  const [userData, setUserData] = useState({
+    username: "",
+    password: "",
+    email: "",
+  });
+  const [fileData, setFileData] = useState({
+    user_id: "",
+    file_name: "",
+    file_type: "",
+    file_url: "",
+  });
+  const [pointData, setPointData] = useState({
+    user_id: "",
+    lat: "",
+    lon: "",
+    label: "",
+  });
+  const [loading, setLoading] = useState(false);
+
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+
+  const onDrop = (acceptedFiles) => {
+    const file = acceptedFiles[0];
+    setFileData({
+      ...fileData,
+      file_name: file.name,
+      file_type: file.type,
+      file_url: file,
+    });
+  };
+
+  const { getRootProps, getInputProps } = useDropzone({
+    onDrop,
+    accept: ".geojson, .kml, .tiff",
+  });
+
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const usersRes = await axios.get(`${apiUrl}/api/users`);
+      setUsers(usersRes.data);
+      const filesRes = await axios.get(`${apiUrl}/api/files`);
+      setFiles(filesRes.data);
+      const pointsRes = await axios.get(`${apiUrl}/api/points`);
+      setPoints(pointsRes.data);
+    } catch (error) {
+      console.error("Error fetching data", error);
+    } finally {
+      setLoading(false);
+    }
+  }, [apiUrl]);
+
+  const createUser = async (e) => {
+    e.preventDefault();
+    if (!userData.username || !userData.password || !userData.email) {
+      return alert("Please fill in all fields.");
+    }
+    alert("Creating user...");
+    setUserData({ username: "", password: "", email: "" });
+    setLoading(true);
+    try {
+      const response = await axios.post(`${apiUrl}/api/users`, userData, {
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+      if (response.status === 201) {
+        alert("User created successfully!");
+        setUserData({ username: "", password: "", email: "" });
+        fetchData();
+      }
+    } catch (error) {
+      console.error("Error creating user", error);
+      alert("Error creating user. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const uploadFile = async (e) => {
+    e.preventDefault();
+    if (!fileData.file_name || !fileData.file_url) {
+      return alert("Please select a file to upload.");
+    }
+
+    const formData = new FormData();
+    formData.append("file", fileData.file_url);
+    formData.append("user_id", fileData.user_id);
+
+    setLoading(true);
+    try {
+      const response = await axios.post(
+        `${apiUrl}/api/files/upload`,
+        formData,
+        {
+          headers: { "Content-Type": "multipart/form-data" },
+        }
+      );
+      if (response.status === 200) {
+        alert("File uploaded successfully!");
+        setFileData({
+          user_id: "",
+          file_name: "",
+          file_type: "",
+          file_url: "",
+        });
+        fetchData();
+      }
+    } catch (error) {
+      console.error("Error uploading file", error);
+      alert("Error uploading file. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              src/app/page.js
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+    <div className="min-h-screen flex flex-col bg-gray-100 p-6">
+      <h1 className="text-4xl font-bold text-center mb-8">Geodata App</h1>
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
+      <div className="flex justify-between gap-4 w-full">
+        <div className="bg-white p-2 w-full rounded-lg shadow-md mb-6">
+          <h2 className="text-2xl font-semibold mb-4">Create User</h2>
+          <form onSubmit={createUser} className="space-y-4">
+            <input
+              type="text"
+              placeholder="Username"
+              value={userData.username}
+              onChange={(e) =>
+                setUserData({ ...userData, username: e.target.value })
+              }
+              className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+            <input
+              type="password"
+              placeholder="Password"
+              value={userData.password}
+              onChange={(e) =>
+                setUserData({ ...userData, password: e.target.value })
+              }
+              className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <input
+              type="email"
+              placeholder="Email"
+              value={userData.email}
+              onChange={(e) =>
+                setUserData({ ...userData, email: e.target.value })
+              }
+              className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <button
+              type="submit"
+              className="w-full py-3 bg-blue-500 text-white font-semibold rounded-md hover:bg-blue-600"
+              disabled={loading}
+            >
+              Create User
+            </button>
+          </form>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+
+        <div className="bg-white p-2 w-full rounded-lg shadow-md mb-6">
+          <h2 className="text-2xl font-semibold mb-4">
+            Drag and Drop File Upload
+          </h2>
+          <div
+            {...getRootProps()}
+            className="border-2 border-dashed border-gray-300 p-6 text-center cursor-pointer rounded-md"
+          >
+            <input {...getInputProps()} />
+            <p className="text-gray-600">
+              Drag and drop a .geojson, .kml, or .tiff file here, or click to
+              select files
+            </p>
+          </div>
+          {fileData.file_name && (
+            <div className="mt-4">
+              <h3 className="text-xl font-semibold">File Details</h3>
+              <p>File Name: {fileData.file_name}</p>
+              <p>File Type: {fileData.file_type}</p>
+              <p>
+                File URL:{" "}
+                <a
+                  href={URL.createObjectURL(fileData.file_url)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-500"
+                >
+                  View File
+                </a>
+              </p>
+              <button
+                onClick={uploadFile}
+                className="mt-4 py-3 px-6 bg-green-500 text-white font-semibold rounded-md hover:bg-green-600"
+                disabled={loading}
+              >
+                Upload File
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <Map points={pointsToDisplay} />
     </div>
   );
-}
+};
+
+export default App;

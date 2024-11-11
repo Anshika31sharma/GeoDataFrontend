@@ -7,12 +7,10 @@ import "@mapbox/mapbox-gl-draw/dist/mapbox-gl-draw.css";
 
 const MapWithNoSSR = dynamic(
   () => import("react-leaflet").then((mod) => mod.MapContainer),
-  {
-    ssr: false,
-  }
+  { ssr: false }
 );
 
-const MapComponent = ({ points }) => {
+const MapComponent = ({ points = [] }) => {
   const mapContainerRef = useRef(null);
   const [distance, setDistance] = useState(0);
   const [distanceUnit, setDistanceUnit] = useState("km");
@@ -21,13 +19,17 @@ const MapComponent = ({ points }) => {
 
   const initialCenter = [9.1135, 24.5825];
   const initialZoom = 5;
+
   const convertDistance = (meters, unit) => {
     if (unit === "km") {
       return (meters / 1000).toFixed(2);
     }
     return (meters * 0.000621371).toFixed(2);
   };
+
   useEffect(() => {
+    if (typeof window === "undefined") return;
+
     mapboxgl.accessToken =
       "pk.eyJ1IjoiYW5zaGlrYTMxc2hhcm1hIiwiYSI6ImNtM2J2dHU1djFvNXMyanI2aGF6a25zdzQifQ.eLvcslTeNFxaYyjSzh-lsg";
 
@@ -37,6 +39,7 @@ const MapComponent = ({ points }) => {
       center: initialCenter,
       zoom: initialZoom,
     });
+
     const draw = new MapboxDraw({
       displayControlsDefault: false,
       controls: {
@@ -50,22 +53,22 @@ const MapComponent = ({ points }) => {
     newMap.addControl(draw);
 
     newMap.on("click", (e) => {
-      if (clickedPoints.length < 2) {
-        const newPoint = [e.lngLat.lng, e.lngLat.lat];
-        setClickedPoints((prevPoints) => [...prevPoints, newPoint]);
+      setClickedPoints((prevPoints) => {
+        const newPoints = [...prevPoints, [e.lngLat.lng, e.lngLat.lat]];
 
-        if (clickedPoints.length === 1) {
-          const [pointA, pointB] = clickedPoints;
-          const totalDistance = calculateDistance(pointA, pointB);
+        if (newPoints.length === 2) {
+          const totalDistance = calculateDistance(newPoints[0], newPoints[1]);
           setDistance(totalDistance);
         }
-      }
+
+        return newPoints;
+      });
     });
 
     setMap(newMap);
 
     return () => newMap.remove();
-  }, [clickedPoints]);
+  }, []);
 
   const calculateDistance = (pointA, pointB) => {
     const R = 6371000;
@@ -110,14 +113,22 @@ const MapComponent = ({ points }) => {
 
       <div className="points-list">
         <h3>Points:</h3>
-        {points.map((point, index) => (
-          <p key={index}>
-            {point.label}: {point.lat}, {point.lon}
-          </p>
-        ))}
+        {Array.isArray(points) && points.length > 0 ? (
+          points.map((point, index) => (
+            <p key={index}>
+              {point.label}: {point.lat}, {point.lon}
+            </p>
+          ))
+        ) : (
+          <p>No points available</p>
+        )}
       </div>
     </div>
   );
+};
+
+MapComponent.defaultProps = {
+  points: [],
 };
 
 export default MapComponent;

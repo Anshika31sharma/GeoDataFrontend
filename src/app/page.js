@@ -10,7 +10,6 @@ const Map = dynamic(() => import("./components/Map"), { ssr: false });
 const App = () => {
   const [users, setUsers] = useState([]);
   const [files, setFiles] = useState([]);
-  const [points, setPoints] = useState([]);
   const [userData, setUserData] = useState({
     username: "",
     password: "",
@@ -22,12 +21,7 @@ const App = () => {
     file_type: "",
     file_url: "",
   });
-  const [pointData, setPointData] = useState({
-    user_id: "",
-    lat: "",
-    lon: "",
-    label: "",
-  });
+ 
   const [loading, setLoading] = useState(false);
 
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
@@ -54,8 +48,6 @@ const App = () => {
       setUsers(usersRes.data);
       const filesRes = await axios.get(`${apiUrl}/api/files`);
       setFiles(filesRes.data);
-      const pointsRes = await axios.get(`${apiUrl}/api/points`);
-      setPoints(pointsRes.data);
     } catch (error) {
       console.error("Error fetching data", error);
     } finally {
@@ -214,7 +206,7 @@ const App = () => {
         </div>
       </div>
 
-      <Map points={pointsToDisplay} />
+      <Map />
     </div>
   );
 };
